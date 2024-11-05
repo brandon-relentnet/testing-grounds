@@ -196,9 +196,14 @@ redisClient.on('error', (err) => {
         });
 
         app.get('/api/fantasy-data', async (req, res) => {
-            let accessToken = req.session.accessToken;
+            console.log('--- /api/fantasy-data Request ---');
+            console.log('Session ID:', req.sessionID);
+            console.log('Session Data:', req.session);
+
+            const accessToken = req.session.accessToken;
 
             if (!accessToken) {
+                console.warn('No accessToken found in session.');
                 return res.status(401).send('User not authenticated');
             }
 
@@ -209,19 +214,8 @@ redisClient.on('error', (err) => {
                     },
                 });
 
-                const data = response.data;
-
-                // Optionally, preprocess the data to ensure consistency
-                // For example, ensure 'leagues' is always an array
-                const leaguesData = data?.fantasy_content?.users?.[0]?.user?.games?.[0]?.game?.leagues?.league;
-
-                if (!leaguesData) {
-                    data.fantasy_content.users[0].user.games[0].game.leagues = { league: [] };
-                } else if (!Array.isArray(leaguesData)) {
-                    data.fantasy_content.users[0].user.games[0].game.leagues.league = [leaguesData];
-                }
-
-                res.json(data);
+                console.log('Successfully fetched fantasy data from Yahoo API.');
+                res.json(response.data);
             } catch (error) {
                 console.error('Error fetching fantasy data:', error.response ? error.response.data : error.message);
                 res.status(500).send('Failed to fetch fantasy data');
