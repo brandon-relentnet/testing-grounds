@@ -11,8 +11,10 @@ function Fantasy() {
         const checkAuth = async () => {
             try {
                 await axios.get('/api/check-auth', { withCredentials: true });
+                console.log('User is authenticated');
                 setIsAuthenticated(true);
             } catch {
+                console.log('User is not authenticated');
                 setIsAuthenticated(false);
             }
         };
@@ -27,7 +29,6 @@ function Fantasy() {
             ) : (
                 <LoginButton />
             )}
-            <LoginButton />
         </div>
     );
 }

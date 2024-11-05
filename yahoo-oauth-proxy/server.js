@@ -21,11 +21,15 @@ app.use(cors({
 }));
 
 app.use(session({
-    secret: 'your_secret_key', // Replace with your own secret key
+    secret: CLIENT_SECRET,
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: false } // Set to true if using HTTPS
+    cookie: {
+        secure: true,     // Set to true if using HTTPS
+        sameSite: 'lax',
+    }
 }));
+
 
 // Route to initiate OAuth flow
 app.get('/auth/yahoo', (req, res) => {
@@ -74,6 +78,7 @@ app.get('/auth/callback', async (req, res) => {
 
 // Endpoint to check if user is authenticated
 app.get('/api/check-auth', (req, res) => {
+    console.log('Session in /api/check-auth:', req.session);
     if (req.session.accessToken) {
         res.sendStatus(200);
     } else {
