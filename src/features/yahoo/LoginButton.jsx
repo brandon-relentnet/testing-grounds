@@ -3,8 +3,8 @@ import React from 'react';
 
 const LoginButton = () => {
     const handleLogin = () => {
-        // Redirect to the backend's OAuth initiation route with prompt parameter to force consent
-        window.location.href = 'https://fantasy.fleetingfascinations.com/auth/yahoo?prompt=consent';
+        // Redirect to the backend's OAuth initiation route with prompt=login to force re-authentication
+        window.location.href = 'https://fantasy.fleetingfascinations.com/auth/yahoo?prompt=login';
     };
 
     return (
