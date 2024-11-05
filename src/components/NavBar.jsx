@@ -8,6 +8,7 @@ function NavBar() {
             {[
                 { to: "/", label: "Home" },
                 { to: "/about", label: "About" },
+                { to: "/fantasy", label: "Fantasy" },
                 { to: "/settings", label: "Settings" },
             ].map((link) => {
                 const isActive = location.pathname === link.to;

@@ -8,6 +8,7 @@ import Settings from './pages/Settings';
 import Accent from './features/accent/Accent';
 import FontFamily from './features/font-family/FontFamily';
 import NavBar from './components/NavBar';
+import Fantasy from './pages/Fantasy'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
+        <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </Router>
