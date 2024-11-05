@@ -14,7 +14,7 @@ app.get('/auth/yahoo', (req, res) => {
     res.redirect(yahooAuthUrl);
 });
 
-// Step 2: Handle OAuth callback and exchange code for access token
+// server.js - /auth/callback
 app.get('/auth/callback', async (req, res) => {
     const authCode = req.query.code;
     const tokenUrl = 'https://api.login.yahoo.com/oauth2/get_token';
@@ -30,9 +30,10 @@ app.get('/auth/callback', async (req, res) => {
             },
         });
 
-        // Access Token
         const accessToken = response.data.access_token;
-        res.json({ accessToken });
+
+        // Redirect to the frontend with the access token
+        res.redirect(`https://fantasy.fleetingfascinations.com?token=${accessToken}`);
     } catch (error) {
         console.error('Error getting access token:', error);
         res.status(500).send('Authentication failed');

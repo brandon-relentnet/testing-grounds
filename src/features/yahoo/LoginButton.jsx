@@ -7,7 +7,7 @@ const LoginButton = () => {
     };
 
     return (
-        <button onClick={handleLogin} style={{ padding: '10px', fontSize: '16px' }}>
+        <button onClick={handleLogin} className='bg-surface0 p-4 m-4'>
             Log in with Yahoo
         </button>
     );
