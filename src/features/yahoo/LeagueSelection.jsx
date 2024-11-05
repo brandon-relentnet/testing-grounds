@@ -1,18 +1,63 @@
-// src/features/yahoo/LeagueSelection.jsx
 import React, { useEffect, useState } from 'react';
 import axios from '../../axiosConfig';
 
 const LeagueSelection = () => {
+    const [games, setGames] = useState([]);
     const [leagues, setLeagues] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [selectedGameKey, setSelectedGameKey] = useState('438'); // Default to NBA
+    const [selectedGameKey, setSelectedGameKey] = useState('');
+
+    // Define parseLeagues function here
+    const parseLeagues = (data) => {
+        try {
+            const leaguesData = data?.fantasy_content?.users?.[0]?.user?.[1]?.games?.[0]?.game?.[1]?.leagues;
+
+            if (!leaguesData || leaguesData.count === 0) {
+                console.warn('No leagues found for the game.');
+                return [];
+            }
+
+            const leaguesArray = [];
+            for (let i = 0; i < leaguesData.count; i++) {
+                const league = leaguesData[i]?.league?.[0];
+                if (league) {
+                    leaguesArray.push({
+                        league_id: league.league_id,
+                        name: league.name,
+                        // Add other fields as needed
+                    });
+                }
+            }
+            return leaguesArray;
+        } catch (err) {
+            console.error('Error parsing leagues:', err);
+            return [];
+        }
+    };
+
+    useEffect(() => {
+        const fetchGames = async () => {
+            try {
+                const response = await axios.get('/api/games');
+                const fetchedGames = response.data.games; // Adjust based on actual response structure
+                console.log('Fetched Games:', fetchedGames);
+                setGames(fetchedGames || []);
+            } catch (err) {
+                console.error('Error fetching games:', err);
+                setError('Failed to load games.');
+            }
+        };
+        fetchGames();
+    }, []);
 
     const handleGameChange = (e) => {
         setSelectedGameKey(e.target.value);
     };
 
     useEffect(() => {
+        if (!selectedGameKey) return;
+
         const fetchLeagues = async () => {
             setIsLoading(true);
             setError(null);
@@ -31,62 +76,20 @@ const LeagueSelection = () => {
         fetchLeagues();
     }, [selectedGameKey]);
 
-    const parseLeagues = (data) => {
-        try {
-            if (!data?.fantasy_content?.users?.length) {
-                console.warn('No users found in the fantasy data.');
-                return [];
-            }
-
-            const user = data.fantasy_content.users[0].user;
-
-            if (!user?.games?.length) {
-                console.warn('No games found for the user.');
-                return [];
-            }
-
-            const game = user.games[0].game;
-
-            const leaguesData = game?.leagues?.league;
-
-            if (!leaguesData) {
-                console.warn('No leagues found for the game.');
-                return [];
-            }
-
-            if (Array.isArray(leaguesData)) {
-                return leaguesData.map(league => ({
-                    league_id: league.league_id,
-                    name: league.name,
-                    // Add other fields as needed
-                }));
-            } else if (typeof leaguesData === 'object') {
-                return [{
-                    league_id: leaguesData.league_id,
-                    name: leaguesData.name,
-                    // Add other fields as needed
-                }];
-            } else {
-                console.warn('Unexpected leagues data structure:', leaguesData);
-                return [];
-            }
-        } catch (err) {
-            console.error('Error parsing leagues:', err);
-            return [];
-        }
-    };
-
     return (
         <div>
             <h2>Select a League</h2>
             <div>
                 <label htmlFor="game-select">Select Sport: </label>
                 <select id="game-select" value={selectedGameKey} onChange={handleGameChange}>
-                    <option value="438">NBA (Basketball)</option>
-                    <option value="449">NFL (Football)</option>
-                    <option value="442">MLB (Baseball)</option>
-                    <option value="445">NHL (Hockey)</option>
-                    {/* Add more options as needed */}
+                    <option value="" disabled>Select a game</option>
+                    {Array.isArray(games) && games.length > 0 ? (
+                        games.map(game => (
+                            <option key={game.game_key} value={game.game_key}>{game.name}</option>
+                        ))
+                    ) : (
+                        <option value="" disabled>No games available</option>
+                    )}
                 </select>
             </div>
             {isLoading ? (

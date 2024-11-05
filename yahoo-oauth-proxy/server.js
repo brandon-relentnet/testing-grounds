@@ -17,7 +17,7 @@ const app = express();
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
-const SESSION_SECRET = process.env.SESSION_SECRET;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'your-strong-secret';
 const tokenUrl = 'https://api.login.yahoo.com/oauth2/get_token';
 const PORT = process.env.PORT || 5000;
 
@@ -44,7 +44,7 @@ redisClient.on('error', (err) => {
         app.use(session({
             name: 'ff-session-id', // Custom session cookie name to prevent conflicts
             store: new RedisStore({ client: redisClient }),
-            secret: SESSION_SECRET || 'your-strong-secret',
+            secret: SESSION_SECRET,
             resave: false,
             saveUninitialized: false,
             cookie: {
@@ -103,6 +103,7 @@ redisClient.on('error', (err) => {
             res.redirect(yahooAuthUrl);
         });
 
+        // OAuth callback route
         app.get('/auth/callback', async (req, res) => {
             const authCode = req.query.code;
             const state = req.query.state;
@@ -222,6 +223,63 @@ redisClient.on('error', (err) => {
             }
         });
 
+        // Endpoint to fetch games
+        app.get('/api/games', async (req, res) => {
+            console.log('--- /api/games Request ---');
+            const accessToken = req.session.accessToken;
+
+            if (!accessToken) {
+                console.warn('No accessToken found in session.');
+                return res.status(401).send('User not authenticated');
+            }
+
+            try {
+                const yahooApiUrl = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games?format=json';
+                console.log(`Fetching games from Yahoo API: ${yahooApiUrl}`);
+
+                const response = await axios.get(yahooApiUrl, {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                });
+
+                console.log('Successfully fetched games from Yahoo API.');
+
+                // Use the implemented parseGames function
+                const games = parseGames(response.data);
+                console.log('Games being sent to frontend:', games);
+                res.json({ games });
+            } catch (error) {
+                console.error('Error fetching games:', error.response ? error.response.data : error.message);
+                res.status(500).send('Failed to fetch games');
+            }
+        });
+
+        // Implement the parseGames function
+        const parseGames = (data) => {
+            const games = [];
+            const gamesData = data.fantasy_content?.users?.[0]?.user?.[1]?.games;
+
+            if (gamesData && gamesData.count > 0) {
+                for (let i = 0; i < gamesData.count; i++) {
+                    const game = gamesData[i]?.game;
+                    if (game) {
+                        games.push({
+                            game_key: game[0]?.game_key,
+                            name: game[0]?.name,
+                            code: game[0]?.code,
+                            season: game[0]?.season,
+                            // Add other fields as needed
+                        });
+                    }
+                }
+            } else {
+                console.warn('No games data found in the response.');
+            }
+
+            return games;
+        };
+
         // Endpoint to fetch fantasy data
         app.get('/api/fantasy-data', async (req, res) => {
             console.log('--- /api/fantasy-data Request ---');
@@ -235,9 +293,15 @@ redisClient.on('error', (err) => {
                 return res.status(401).send('User not authenticated');
             }
 
+            const gameKeys = req.query.game_keys;
+            if (!gameKeys) {
+                console.warn('No game_keys parameter provided.');
+                return res.status(400).send('No game_keys parameter provided.');
+            }
+
             try {
-                // **Use the correct game_key for NBA: 438**
-                const response = await axios.get('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=438/leagues?format=json', {
+                // Include the gameKeys in the API request
+                const response = await axios.get(`https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=${gameKeys}/leagues?format=json`, {
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
                     },
