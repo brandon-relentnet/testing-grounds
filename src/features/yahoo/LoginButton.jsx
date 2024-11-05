@@ -3,7 +3,7 @@ import React from 'react';
 
 const LoginButton = () => {
     const handleLogin = () => {
-        window.location.href = 'https://fantasy.fleetingfascinations.com/auth/yahoo';
+        window.location.href = '/auth/yahoo'; // Relative path to your backend endpoint
     };
 
     return (

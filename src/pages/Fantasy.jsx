@@ -1,30 +1,35 @@
 // src/pages/About.jsx
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import LoginButton from '../features/yahoo/LoginButton';
+import LeagueSelection from '../features/yahoo/LeagueSelection';
 
-function About() {
-    const [token, setToken] = useState(null);
+function Fantasy() {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const accessToken = urlParams.get('token');
-        if (accessToken) {
-            setToken(accessToken);
-            // Optionally, store the token in localStorage or sessionStorage
-            localStorage.setItem('accessToken', accessToken);
-        }
+        const checkAuth = async () => {
+            try {
+                await axios.get('/api/check-auth', { withCredentials: true });
+                setIsAuthenticated(true);
+            } catch {
+                setIsAuthenticated(false);
+            }
+        };
+        checkAuth();
     }, []);
 
     return (
         <div className="App">
             <h1>Welcome to Fantasy Manager</h1>
-            {token ? (
-                <LeagueSelection token={token} />
+            {isAuthenticated ? (
+                <LeagueSelection />
             ) : (
                 <LoginButton />
             )}
+            <LoginButton />
         </div>
     );
 }
 
-export default About;
+export default Fantasy;
