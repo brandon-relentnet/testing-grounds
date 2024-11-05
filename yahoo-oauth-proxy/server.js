@@ -145,6 +145,29 @@ redisClient.on('error', (err) => {
             }
         });
 
+        // Logout Route
+        app.post('/api/logout', (req, res) => {
+            console.log('--- /api/logout Request ---');
+            console.log('Session ID before logout:', req.sessionID);
+
+            req.session.destroy(err => {
+                if (err) {
+                    console.error('Error destroying session:', err);
+                    return res.status(500).send('Failed to logout. Please try again.');
+                }
+                // Clear the session cookie
+                res.clearCookie('ff-session-id', {
+                    domain: '.fleetingfascinations.com',
+                    path: '/',
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                });
+                console.log('Session destroyed successfully.');
+                res.status(200).send('Logged out successfully.');
+            });
+        });
+
         // Middleware to refresh access tokens
         app.use(async (req, res, next) => {
             if (req.session.accessToken && req.session.tokenTimestamp) {

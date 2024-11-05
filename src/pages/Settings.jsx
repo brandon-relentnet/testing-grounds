@@ -3,6 +3,8 @@ import React from 'react';
 import ThemeDropdown from '../features/theme/ThemeDropdown';
 import AccentDropdown from '../features/accent/AccentDropdown';
 import FontFamilyDropdown from '../features/font-family/FontFamilyDropdown';
+import LogoutButton from '../features/yahoo/LogoutButton';
+import LoginButton from '../features/yahoo/LoginButton';
 
 function Settings() {
     return (
@@ -22,6 +24,19 @@ function Settings() {
                     <div className="p-4 text-left">
                         <label className='text-subtext1 ml-1 font-semibold block'>Font Family:</label>
                         <FontFamilyDropdown />
+                    </div>
+                </div>
+
+                <h2 className='text-2xl text-subtext1 font-semibold m-4 text-left'>Accounts</h2>
+                {/* Centered grid with larger width */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-surface0 rounded shadow">
+                    <div className="p-4 text-left">
+                        <label className='text-subtext1 ml-1 font-semibold block'>Yahoo Sports:</label>
+                        <LoginButton />
+                        <LogoutButton />
+                    </div>
+                    <div className="p-4 text-left">
+                        
                     </div>
                 </div>
             </div>
