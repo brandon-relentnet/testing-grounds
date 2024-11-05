@@ -6,7 +6,7 @@ import LeagueSelection from '../features/yahoo/LeagueSelection';
 
 function Fantasy() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true); // Added loading state
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -25,7 +25,7 @@ function Fantasy() {
     }, []);
 
     if (isLoading) {
-        return <div>Loading...</div>;
+        return <div>Loading...</div>; // Display a loading indicator
     }
 
     return (

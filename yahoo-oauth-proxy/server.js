@@ -5,6 +5,10 @@ const express = require('express');
 const axios = require('axios');
 const session = require('express-session');
 const cors = require('cors');
+const path = require('path');
+const helmet = require('helmet');
+const RedisStore = require('connect-redis')(session);
+const redis = require('redis');
 const crypto = require('crypto');
 
 const app = express();
@@ -15,23 +19,40 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 const tokenUrl = 'https://api.login.yahoo.com/oauth2/get_token';
 
+// Create Redis client
+const redisClient = redis.createClient({
+    host: 'localhost', // Replace with your Redis server host
+    port: 6379,        // Replace with your Redis server port
+    // password: 'your_redis_password', // If Redis is secured
+});
+
+redisClient.on('error', (err) => {
+    console.error('Redis error:', err);
+});
+
 // Middleware
+
+// Use Helmet for security headers
+app.use(helmet());
 
 // CORS configuration
 app.use(cors({
-    origin: 'https://fantasy.fleetingfascinations.com', // Replace with your frontend domain
+    origin: 'https://fantasy.fleetingfascinations.com', // Your frontend domain
     credentials: true
 }));
 
-// Session configuration
+// Session configuration with Redis store
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-default-secret', // Use a strong secret in production
+    store: new RedisStore({ client: redisClient }),
+    secret: process.env.SESSION_SECRET || 'your-strong-secret',
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: false, // Better to set to false
     cookie: {
         secure: process.env.NODE_ENV === 'production', // true in production
         sameSite: 'lax',
-        // domain: '.fleetingfascinations.com', // Uncomment if using subdomains
+        domain: '.fleetingfascinations.com', // Allows sharing across subdomains
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
     }
 }));
 
@@ -45,6 +66,9 @@ app.use((req, res, next) => {
     console.log('Session Data:', req.session);
     next();
 });
+
+// Serve static files from the React frontend app
+app.use(express.static(path.join(__dirname, 'client/build')));
 
 // Route to initiate OAuth flow
 app.get('/auth/yahoo', (req, res) => {
@@ -106,6 +130,46 @@ app.get('/auth/callback', async (req, res) => {
     }
 });
 
+// Middleware to refresh access tokens
+app.use(async (req, res, next) => {
+    if (req.session.accessToken && req.session.tokenTimestamp) {
+        const currentTime = Date.now();
+        const elapsed = (currentTime - req.session.tokenTimestamp) / 1000; // in seconds
+        if (elapsed > req.session.expiresIn - 300) { // Refresh 5 minutes before expiry
+            try {
+                const response = await axios.post(tokenUrl, new URLSearchParams({
+                    client_id: CLIENT_ID,
+                    client_secret: CLIENT_SECRET,
+                    redirect_uri: REDIRECT_URI,
+                    refresh_token: req.session.refreshToken,
+                    grant_type: 'refresh_token',
+                }), {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                });
+
+                req.session.accessToken = response.data.access_token;
+                req.session.refreshToken = response.data.refresh_token || req.session.refreshToken;
+                req.session.expiresIn = response.data.expires_in;
+                req.session.tokenTimestamp = Date.now();
+
+                console.log('Access token refreshed.');
+            } catch (error) {
+                console.error('Error refreshing access token:', error.response ? error.response.data : error.message);
+                // Destroy the session and prompt re-authentication
+                req.session.destroy(err => {
+                    if (err) {
+                        console.error('Error destroying session:', err);
+                    }
+                    return res.status(401).send('Session expired. Please re-authenticate.');
+                });
+            }
+        }
+    }
+    next();
+});
+
 // Endpoint to check if user is authenticated
 app.get('/api/check-auth', (req, res) => {
     console.log('Session in /api/check-auth:', req.session);
@@ -124,7 +188,7 @@ app.get('/api/fantasy-data', async (req, res) => {
         return res.status(401).send('User not authenticated');
     }
 
-    // Optional: Implement token refresh logic if needed
+    // Optional: Implement token refresh logic here if not using global middleware
 
     try {
         const response = await axios.get('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/leagues?format=json', {
@@ -138,6 +202,11 @@ app.get('/api/fantasy-data', async (req, res) => {
         console.error('Error fetching data:', error.response ? error.response.data : error.message);
         res.status(500).send('Failed to fetch data');
     }
+});
+
+// Serve React frontend for any other routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
 });
 
 // Start the server
