@@ -5,6 +5,7 @@ const express = require('express');
 const axios = require('axios');
 const session = require('express-session');
 const cors = require('cors');
+const crypto = require('crypto');
 
 const app = express();
 
@@ -24,12 +25,13 @@ app.use(cors({
 
 // Session configuration
 app.use(session({
-    secret: 'b80f6649493619e6403381772edc1cb139cc61c3', // Replace with your own secret key
+    secret: process.env.SESSION_SECRET || 'your-default-secret', // Use a strong secret in production
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: {
-        secure: true,     // Set to true if your app is served over HTTPS
-        sameSite: 'lax',   // 'lax' allows cookies to be sent with normal requests and top-level navigation
+        secure: process.env.NODE_ENV === 'production', // true in production
+        sameSite: 'lax',
+        // domain: '.fleetingfascinations.com', // Uncomment if using subdomains
     }
 }));
 
@@ -46,12 +48,12 @@ app.use((req, res, next) => {
 
 // Route to initiate OAuth flow
 app.get('/auth/yahoo', (req, res) => {
-    const state = Math.random().toString(36).substring(2);
+    const state = crypto.randomBytes(16).toString('hex'); // More secure state generation
     req.session.oauthState = state;
     console.log('Generated state:', state);
     console.log('Session ID:', req.sessionID);
 
-    const scopes = ['openid', 'fspt-w']; // Use 'fspt-w' for read/write access, 'fspt-r' for read-only
+    const scopes = ['openid', 'fspt-r']; // Use 'fspt-w' for read/write access, 'fspt-r' for read-only
     const scopeParam = encodeURIComponent(scopes.join(' '));
     const yahooAuthUrl = `https://api.login.yahoo.com/oauth2/request_auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scopeParam}&state=${state}`;
 
@@ -61,15 +63,22 @@ app.get('/auth/yahoo', (req, res) => {
 app.get('/auth/callback', async (req, res) => {
     const authCode = req.query.code;
     const state = req.query.state;
+
+    // Log received code and state
+    console.log('--- Callback Received ---');
     console.log('Received code:', authCode);
     console.log('Received state:', state);
     console.log('Session state:', req.session.oauthState);
     console.log('Session ID:', req.sessionID);
+    console.log('Full Session Object:', req.session);
 
+    // Check for authorization code and state validity
     if (!authCode || !state || state !== req.session.oauthState) {
+        console.error("Error: Authorization code or state missing or invalid.");
         return res.status(400).send("Authorization code or state missing or invalid.");
     }
 
+    // Exchange authorization code for access token
     try {
         const response = await axios.post(tokenUrl, new URLSearchParams({
             client_id: CLIENT_ID,
@@ -83,14 +92,14 @@ app.get('/auth/callback', async (req, res) => {
             },
         });
 
-        const { access_token, refresh_token, expires_in } = response.data;
-        console.log('Access token:', access_token);
-        req.session.accessToken = access_token;
-        req.session.refreshToken = refresh_token;
-        req.session.expiresIn = expires_in;
+        const accessToken = response.data.access_token;
+        req.session.accessToken = accessToken;
+        req.session.refreshToken = response.data.refresh_token;
+        req.session.expiresIn = response.data.expires_in;
         req.session.tokenTimestamp = Date.now();
 
-        res.redirect('https://fantasy.fleetingfascinations.com');
+        console.log('Access token obtained and stored in session.');
+        res.redirect('https://fantasy.fleetingfascinations.com'); // Redirect to frontend
     } catch (error) {
         console.error('Error getting access token:', error.response ? error.response.data : error.message);
         res.status(500).send('Authentication failed');
