@@ -82,6 +82,9 @@ redisClient.on('error', (err) => {
             next();
         });
 
+        // Middleware to parse JSON bodies
+        app.use(express.json());
+
         // Serve static files from the React frontend app
         app.use(express.static(path.join(__dirname, 'client/build')));
 
@@ -94,7 +97,8 @@ redisClient.on('error', (err) => {
 
             const scopes = ['openid', 'fspt-r']; // Use 'fspt-w' for read/write access, 'fspt-r' for read-only
             const scopeParam = encodeURIComponent(scopes.join(' '));
-            const yahooAuthUrl = `https://api.login.yahoo.com/oauth2/request_auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scopeParam}&state=${state}`;
+            const promptParam = req.query.prompt ? `&prompt=${req.query.prompt}` : '';
+            const yahooAuthUrl = `https://api.login.yahoo.com/oauth2/request_auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scopeParam}&state=${state}${promptParam}`;
 
             res.redirect(yahooAuthUrl);
         });
@@ -218,6 +222,7 @@ redisClient.on('error', (err) => {
             }
         });
 
+        // Endpoint to fetch fantasy data
         app.get('/api/fantasy-data', async (req, res) => {
             console.log('--- /api/fantasy-data Request ---');
             console.log('Session ID:', req.sessionID);
@@ -231,7 +236,8 @@ redisClient.on('error', (err) => {
             }
 
             try {
-                const response = await axios.get('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/leagues?format=json', {
+                // **Use the correct game_key for NBA: 438**
+                const response = await axios.get('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=438/leagues?format=json', {
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
                     },
@@ -244,8 +250,6 @@ redisClient.on('error', (err) => {
                 res.status(500).send('Failed to fetch fantasy data');
             }
         });
-
-
 
         // Serve React frontend for any other routes
         app.get('*', (req, res) => {

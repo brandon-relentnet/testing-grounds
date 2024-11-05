@@ -1,17 +1,24 @@
-// src/features/yahoo/LeagueSelection.js
+// src/features/yahoo/LeagueSelection.jsx
 import React, { useEffect, useState } from 'react';
-import axios from '../../axiosConfig'; // Use the configured Axios instance
+import axios from '../../axiosConfig';
 
 const LeagueSelection = () => {
     const [leagues, setLeagues] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [selectedGameKey, setSelectedGameKey] = useState('438'); // Default to NBA
+
+    const handleGameChange = (e) => {
+        setSelectedGameKey(e.target.value);
+    };
 
     useEffect(() => {
         const fetchLeagues = async () => {
+            setIsLoading(true);
+            setError(null);
             try {
-                const response = await axios.get('/api/fantasy-data');
-                console.log('Fetched Fantasy Data:', response.data); // Add this line
+                const response = await axios.get(`/api/fantasy-data?game_keys=${selectedGameKey}`);
+                console.log('Fetched Fantasy Data:', response.data);
                 const fetchedLeagues = parseLeagues(response.data);
                 setLeagues(fetchedLeagues);
             } catch (error) {
@@ -22,11 +29,10 @@ const LeagueSelection = () => {
             }
         };
         fetchLeagues();
-    }, []);
+    }, [selectedGameKey]);
 
     const parseLeagues = (data) => {
         try {
-            // Check if 'users' array exists and has at least one user
             if (!data?.fantasy_content?.users?.length) {
                 console.warn('No users found in the fantasy data.');
                 return [];
@@ -34,7 +40,6 @@ const LeagueSelection = () => {
 
             const user = data.fantasy_content.users[0].user;
 
-            // Check if 'games' array exists and has at least one game
             if (!user?.games?.length) {
                 console.warn('No games found for the user.');
                 return [];
@@ -42,7 +47,6 @@ const LeagueSelection = () => {
 
             const game = user.games[0].game;
 
-            // Check if 'leagues' and 'league' exist
             const leaguesData = game?.leagues?.league;
 
             if (!leaguesData) {
@@ -57,7 +61,6 @@ const LeagueSelection = () => {
                     // Add other fields as needed
                 }));
             } else if (typeof leaguesData === 'object') {
-                // Single league scenario
                 return [{
                     league_id: leaguesData.league_id,
                     name: leaguesData.name,
@@ -73,19 +76,24 @@ const LeagueSelection = () => {
         }
     };
 
-
-    if (isLoading) {
-        return <div>Loading leagues...</div>;
-    }
-
-    if (error) {
-        return <div>{error}</div>;
-    }
-
     return (
         <div>
             <h2>Select a League</h2>
-            {leagues.length > 0 ? (
+            <div>
+                <label htmlFor="game-select">Select Sport: </label>
+                <select id="game-select" value={selectedGameKey} onChange={handleGameChange}>
+                    <option value="438">NBA (Basketball)</option>
+                    <option value="449">NFL (Football)</option>
+                    <option value="442">MLB (Baseball)</option>
+                    <option value="445">NHL (Hockey)</option>
+                    {/* Add more options as needed */}
+                </select>
+            </div>
+            {isLoading ? (
+                <div>Loading leagues...</div>
+            ) : error ? (
+                <div>{error}</div>
+            ) : leagues.length > 0 ? (
                 <ul>
                     {leagues.map((league) => (
                         <li key={league.league_id}>{league.name}</li>
